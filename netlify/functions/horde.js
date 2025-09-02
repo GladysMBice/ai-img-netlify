@@ -26,7 +26,7 @@ exports.handler = async (event) => {
     if (ct) headers["content-type"] = ct;
 
     headers["client-agent"] = "netlify-img-gen:1.0:yourname";
-    headers["apikey"] = process.env.HORDE_API_KEY || "0000000000"; // guest if not set
+    headers["apikey"] = process.env.HORDE_API_KEY || "jDsN7-4v7HhOj3oJIVQdwg"; // guest if not set
 
     const init = { method: event.httpMethod, headers };
     if (!["GET", "HEAD"].includes(event.httpMethod) && event.body) {
@@ -53,4 +53,5 @@ exports.handler = async (event) => {
       body: JSON.stringify({ error: e.message || "Proxy error" }),
     };
   }
+
 };
