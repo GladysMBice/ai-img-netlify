@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Free AI Image Generator</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+    h2 { margin: 0 0 12px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+    input, select, button { padding: 10px; font-size: 16px; }
+    #img { max-width: 100%; margin-top: 12px; border-radius: 8px; display: block; }
+    .small { font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <h2>Free AI Image Generator</h2>
+  <div class="row">
+    <input id="prompt" type="text" placeholder="Prompt likho (e.g. 'a cute cat, photorealistic')" style="flex:1; min-width:260px">
+    <button id="go">Generate</button>
+  </div>
+  <div class="row">
+    <select id="model">
+      <option value="">Auto (stable_diffusion)</option>
+      <option value="SDXL 1.0">SDXL 1.0 (better, slower)</option>
+    </select>
+    <select id="size">
+      <option value="512x512">512 x 512</option>
+      <option value="768x512">768 x 512</option>
+      <option value="512x768">512 x 768</option>
+    </select>
+    <span id="status" class="small"></span>
+  </div>
+  <img id="img" alt="" />
+  <script>
+    const API = "/horde"; // Netlify proxy
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    async function generate() {
+      const prompt = document.getElementById("prompt").value.trim();
+      const model = document.getElementById("model").value;
+      const size = document.getElementById("size").value.split("x").map(Number);
+      const status = document.getElementById("status");
+      const imgEl = document.getElementById("img");
+
+      if (!prompt) return;
+      status.textContent = "Submitting job...";
+      imgEl.src = "";
+
+      const body = {
+        prompt,
+        params: { steps: 20, width: size[0], height: size[1], sampler_name: "k_euler", cfg_scale: 7 },
+        nsfw: false, censor_nsfw: true
+      };
+      if (model) body.models = [model];
+
+      const submit = await fetch(`${API}/generate/async`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+
+      const data = await submit.json().catch(() => ({}));
+      if (!submit.ok) { status.textContent = "Error: " + (data.message || submit.status); return; }
+      const id = data.id;
+
+      while (true) {
+        const check = await fetch(`${API}/generate/check/${id}`);
+        const cj = await check.json();
+        if (cj.done) break;
+        status.textContent = `Queue: ${cj.queue_position ?? "?"} | ETA: ${Math.round((cj.wait_time || 0)/1000)}s`;
+        await sleep(2500);
+      }
+
+      const fin = await fetch(`${API}/generate/status/${id}`);
+      const fj = await fin.json();
+      if (!fj.generations || !fj.generations.length) { status.textContent = "No image returned."; return; }
+
+      const img64 = fj.generations[0].img;
+      imgEl.src = "data:image/webp;base64," + img64;
+      status.textContent = "Done ✅";
+    }
+
+    document.getElementById("go").addEventListener("click", generate);
+  </script>
+</body>
+</html>
