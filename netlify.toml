@@ -1,0 +1,15 @@
+[build]
+publish = "."
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
+[build.environment]
+NODE_VERSION = "18"
+
+[[redirects]]
+from = "/horde/*"
+to = "/.netlify/functions/horde/:splat"
+status = 200
+force = true
